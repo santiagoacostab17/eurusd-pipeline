@@ -2,73 +2,66 @@ import pandas as pd
 import glob
 import os
 
-# -----------------------------
-# 1️⃣ Set the path to your CSV files
-# -----------------------------
-# Change 'data/' to the folder where your CSV files are located
-csv_path = 'data/*.csv'
+# -----------------------------------
+# 1. Load all CSV files
+# -----------------------------------
+file_pattern = "data/*.csv"
+files = glob.glob(file_pattern)
 
-# List all CSV files in the folder
-csv_files = glob.glob(csv_path)
-print(f"{len(csv_files)} files found:")
-for f in csv_files:
-    print(f)
+print(f"{len(files)} files detected.")
 
-# -----------------------------
-# 2️⃣ Read and concatenate all CSV files
-# -----------------------------
-dfs = []
+dataframes = [pd.read_csv(file) for file in files]
+df = pd.concat(dataframes, ignore_index=True)
 
-for f in csv_files:
-    df = pd.read_csv(f)
-    dfs.append(df)
+# -----------------------------------
+# 2. Basic cleaning
+# -----------------------------------
+if "Volume" in df.columns:
+    df = df.drop(columns=["Volume"])
 
-# Concatenate all DataFrames into a single one
-df_full = pd.concat(dfs, ignore_index=True)
-print(f"\nCombined DataFrame created with {df_full.shape[0]} rows and {df_full.shape[1]} columns.")
+df.columns = ["datetime", "open", "high", "low", "close"]
 
-# -----------------------------
-# 3️⃣ Clean and convert date/time
-# -----------------------------
-# Adjust column names according to your CSV
-print("Original columns:")
-print(list(df_full.columns))
+df["datetime"] = pd.to_datetime(
+    df["datetime"],
+    format="%d.%m.%Y %H:%M:%S.%f"
+)
 
-# Drop unnecessary columns
-if 'Volume' in df_full.columns:
-    df_full = df_full.drop(columns=['Volume'])
+df = (
+    df
+    .drop_duplicates(subset="datetime")
+    .sort_values("datetime")
+    .reset_index(drop=True)
+)
 
-# Rename columns
-df_full.columns = ["datetime", "open", "high", "low", "close"]
+# -----------------------------------
+# 3. Export 1-minute dataset
+# -----------------------------------
+output_1m = "EURUSD_1m_clean.csv"
+df.to_csv(output_1m, index=False)
 
-# Convert datetime column and sort
-df_full["datetime"] = pd.to_datetime(df_full["datetime"])
-df_full = df_full.sort_values("datetime").reset_index(drop=True)
+print(f"1-minute dataset saved to: {os.path.abspath(output_1m)}")
 
-print("Final columns:")
-print(list(df_full.columns))
+# -----------------------------------
+# 4. Generate 2-minute candles
+# -----------------------------------
+df = df.set_index("datetime")
 
-# -----------------------------
-# 4️⃣ Save the cleaned 1-minute CSV
-# -----------------------------
-output_1m = 'EURUSD_1m_clean.csv'
-df_full.to_csv(output_1m, index=False)
-print(f"\n1-minute CSV saved as: {os.path.abspath(output_1m)}")
+df_2m = (
+    df
+    .resample("2min")
+    .agg({
+        "open": "first",
+        "high": "max",
+        "low": "min",
+        "close": "last"
+    })
+    .dropna()
+    .reset_index()
+)
 
-# -----------------------------
-# 5️⃣ Generate and save the 2-minute candles CSV
-# -----------------------------
-# Set datetime as index for resampling
-df_full.set_index("datetime", inplace=True)
-
-# Resample to 2-minute candles
-df_2m = df_full.resample("2T").agg({
-    "open": "first",
-    "high": "max",
-    "low": "min",
-    "close": "last"
-}).dropna().reset_index()
-
-output_2m = 'EURUSD_2m_clean.csv'
+output_2m = "EURUSD_2m_clean.csv"
 df_2m.to_csv(output_2m, index=False)
-print(f"2-minute CSV saved as: {os.path.abspath(output_2m)}")
+
+print(f"2-minute dataset saved to: {os.path.abspath(output_2m)}")
+
+print("Process completed successfully.")
