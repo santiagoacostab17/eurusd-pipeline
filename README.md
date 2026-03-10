@@ -64,10 +64,3 @@ Demonstrates **data cleaning, aggregation, vectorized analysis, and reproducible
 2. Run cleaning and aggregation scripts  
 3. Run pattern detection/backtesting scripts  
 4. Outputs include **cleaned datasets, trade metrics, and pattern visualizations**
-
----
-
-## 📊 Process Flow Diagram
-
-[![Trading Workflow](patterns/trading_flow.png)](patterns/trading_flow.png)  
-*Steps: data ingestion → cleaning → aggregation → pattern detection → evaluation → visualization*
